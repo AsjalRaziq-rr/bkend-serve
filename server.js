@@ -197,12 +197,13 @@ include ':app'`;
 }
 
 async function compileAPK(projectDir, appName) {
-  return new Promise((resolve, reject) => {
-    const isWindows = process.platform === 'win32';
-    const gradleCmd = isWindows ? 'gradlew.bat' : './gradlew';
-    
-    // Create gradlew wrapper files
-    createGradleWrapper(projectDir);
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Create gradlew wrapper files and download jar
+      await createGradleWrapper(projectDir);
+      
+      const isWindows = process.platform === 'win32';
+      const gradleCmd = isWindows ? 'gradlew.bat' : './gradlew';
 
     const gradle = spawn(gradleCmd, ['assembleRelease'], {
       cwd: projectDir,
@@ -238,9 +239,9 @@ async function compileAPK(projectDir, appName) {
       }
     });
 
-    gradle.on('error', (error) => {
-      reject(new Error(`Failed to start Gradle process: ${error.message}`));
-    });
+    } catch (setupError) {
+      reject(new Error(`Failed to setup Gradle wrapper: ${setupError.message}`));
+    }
   });
 }
 
@@ -360,6 +361,37 @@ zipStoreBase=GRADLE_USER_HOME
 zipStorePath=wrapper/dists`;
   
   fs.writeFileSync(path.join(projectDir, 'gradle/wrapper/gradle-wrapper.properties'), wrapperProperties);
+  
+  // Download gradle-wrapper.jar
+  const gradleWrapperJar = path.join(projectDir, 'gradle/wrapper/gradle-wrapper.jar');
+  const https = require('https');
+  const http = require('http');
+  
+  return new Promise((resolve, reject) => {
+    const jarUrl = 'https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar';
+    
+    https.get(jarUrl, (response) => {
+      if (response.statusCode === 200) {
+        const fileStream = fs.createWriteStream(gradleWrapperJar);
+        response.pipe(fileStream);
+        
+        fileStream.on('finish', () => {
+          fileStream.close();
+          console.log('Gradle wrapper jar downloaded successfully');
+          resolve();
+        });
+        
+        fileStream.on('error', (err) => {
+          fs.unlink(gradleWrapperJar, () => {}); // Delete the file on error
+          reject(err);
+        });
+      } else {
+        reject(new Error(`Failed to download gradle-wrapper.jar: ${response.statusCode}`));
+      }
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
 }
 
 app.listen(PORT, () => {
