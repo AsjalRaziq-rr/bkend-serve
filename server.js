@@ -368,29 +368,48 @@ zipStorePath=wrapper/dists`;
   const http = require('http');
   
   return new Promise((resolve, reject) => {
-    const jarUrl = 'https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar';
+    // Use a more reliable URL for gradle-wrapper.jar
+    const jarUrl = 'https://services.gradle.org/distributions/gradle-8.2-wrapper.jar';
     
-    https.get(jarUrl, (response) => {
-      if (response.statusCode === 200) {
-        const fileStream = fs.createWriteStream(gradleWrapperJar);
-        response.pipe(fileStream);
-        
-        fileStream.on('finish', () => {
-          fileStream.close();
-          console.log('Gradle wrapper jar downloaded successfully');
-          resolve();
-        });
-        
-        fileStream.on('error', (err) => {
-          fs.unlink(gradleWrapperJar, () => {}); // Delete the file on error
-          reject(err);
-        });
-      } else {
-        reject(new Error(`Failed to download gradle-wrapper.jar: ${response.statusCode}`));
+    function downloadFile(url, redirectCount = 0) {
+      if (redirectCount > 5) {
+        reject(new Error('Too many redirects'));
+        return;
       }
-    }).on('error', (err) => {
-      reject(err);
-    });
+      
+      https.get(url, (response) => {
+        if (response.statusCode === 200) {
+          const fileStream = fs.createWriteStream(gradleWrapperJar);
+          response.pipe(fileStream);
+          
+          fileStream.on('finish', () => {
+            fileStream.close();
+            console.log('Gradle wrapper jar downloaded successfully');
+            resolve();
+          });
+          
+          fileStream.on('error', (err) => {
+            fs.unlink(gradleWrapperJar, () => {}); // Delete the file on error
+            reject(err);
+          });
+        } else if (response.statusCode === 302 || response.statusCode === 301) {
+          // Handle redirects
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            console.log(`Following redirect to: ${redirectUrl}`);
+            downloadFile(redirectUrl, redirectCount + 1);
+          } else {
+            reject(new Error('Redirect without location header'));
+          }
+        } else {
+          reject(new Error(`Failed to download gradle-wrapper.jar: ${response.statusCode}`));
+        }
+      }).on('error', (err) => {
+        reject(err);
+      });
+    }
+    
+    downloadFile(jarUrl);
   });
 }
 
