@@ -160,10 +160,14 @@ dependencies {
 }`;
   await fs.writeFile(path.join(projectDir, 'app/build.gradle'), appBuildGradle);
 
-  // Create gradle.properties
-  const gradleProperties = `org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+  // Create gradle.properties with reduced memory usage
+  const gradleProperties = `org.gradle.jvmargs=-Xmx1024m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+org.gradle.daemon=false
+org.gradle.parallel=false
+org.gradle.configureondemand=false
 android.useAndroidX=true
-android.enableJetifier=true`;
+android.enableJetifier=true
+android.builder.sdkDownload=false`;
   await fs.writeFile(path.join(projectDir, 'gradle.properties'), gradleProperties);
 
   // Create settings.gradle
