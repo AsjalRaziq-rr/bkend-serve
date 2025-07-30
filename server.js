@@ -362,14 +362,14 @@ zipStorePath=wrapper/dists`;
   
   fs.writeFileSync(path.join(projectDir, 'gradle/wrapper/gradle-wrapper.properties'), wrapperProperties);
   
-  // Download gradle-wrapper.jar
+  // Download gradle-wrapper.jar from GitHub
   const gradleWrapperJar = path.join(projectDir, 'gradle/wrapper/gradle-wrapper.jar');
   const https = require('https');
   const http = require('http');
   
   return new Promise((resolve, reject) => {
-    // Use a more reliable URL for gradle-wrapper.jar
-    const jarUrl = 'https://services.gradle.org/distributions/gradle-8.2-wrapper.jar';
+    // Use GitHub raw content URL for gradle-wrapper.jar
+    const jarUrl = 'https://github.com/gradle/gradle/raw/v8.2.1/gradle/wrapper/gradle-wrapper.jar';
     
     function downloadFile(url, redirectCount = 0) {
       if (redirectCount > 5) {
@@ -377,7 +377,9 @@ zipStorePath=wrapper/dists`;
         return;
       }
       
-      https.get(url, (response) => {
+      const client = url.startsWith('https:') ? https : http;
+      
+      client.get(url, (response) => {
         if (response.statusCode === 200) {
           const fileStream = fs.createWriteStream(gradleWrapperJar);
           response.pipe(fileStream);
