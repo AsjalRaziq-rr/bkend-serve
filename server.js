@@ -209,10 +209,19 @@ async function compileAPK(projectDir, appName) {
       const isWindows = process.platform === 'win32';
       const gradleCmd = isWindows ? 'gradlew.bat' : './gradlew';
 
-    const gradle = spawn(gradleCmd, ['assembleRelease'], {
+    const gradle = spawn(gradleCmd, [
+      'assembleRelease',
+      '-Dorg.gradle.daemon=false',
+      '-Dorg.gradle.jvmargs=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:MaxDirectMemorySize=64m',
+      '--no-build-cache',
+      '--no-configuration-cache',
+      '--parallel=false',
+      '--max-workers=1'
+    ], {
       cwd: projectDir,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: isWindows
+      shell: isWindows,
+      env: { ...process.env, GRADLE_OPTS: '-Xmx512m -XX:MaxMetaspaceSize=256m' }
     });
 
     let output = '';
