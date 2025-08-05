@@ -215,7 +215,7 @@ async function compileAPK(projectDir, appName) {
       '-Dorg.gradle.jvmargs=-Xmx512m -XX:MaxMetaspaceSize=256m -XX:MaxDirectMemorySize=64m',
       '--no-build-cache',
       '--no-configuration-cache',
-      '--parallel=false',
+      '--no-parallel',
       '--max-workers=1'
     ], {
       cwd: projectDir,
